@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小猪九月打卡盖章日历</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "Microsoft Yahei", sans-serif;
+        }
+      body {
+    background-image: url("0a6adf2f66aee14b076d80ac6a63f705.jpg");
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    padding:20px;
+}
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+        h2 {
+            text-align:center;
+            color:#d87899;
+            margin-bottom:16px;
+        }
+        /* 星期头部 */
+        .week-header{
+            display:grid;
+            grid-template-columns: repeat(7,1fr);
+            gap:6px;
+            margin-bottom:6px;
+        }
+        .week-item{
+            text-align:center;
+            color:#b05472;
+            font-weight:bold;
+            font-size:14px;
+        }
+        /* 印章选择区 */
+        .stamp-select{
+            display:flex;
+            gap:12px;
+            justify-content:center;
+            margin-bottom:16px;
+            flex-wrap:wrap;
+        }
+        .stamp-item{
+            padding:8px 14px;
+            border:2px solid #ffc8d8;
+            border-radius:10px;
+            cursor:pointer;
+            background:#ffffff;
+        }
+        .stamp-item.active{
+            background:#ffd9e4;
+            border-color:#e888a8;
+        }
+        /* 统计面板 */
+        .stat-box{
+            display:flex;
+            justify-content:space-around;
+            background:#ffe7ee;
+            border-radius:12px;
+            padding:12px;
+            margin-bottom:16px;
+        }
+        .stat-item{
+            text-align:center;
+            color:#b05472;
+        }
+        /* 日历网格 */
+        .calendar-grid{
+            display:grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap:6px;
+        }
+        .day-cell{
+            aspect-ratio:1/1;
+            border:1px solid #f2c6d4;
+            border-radius:6px;
+            background:#fff;
+            position:relative;
+            cursor:pointer;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:13px;
+            color:#996677;
+        }
+        .day-cell.empty{
+            background:#fcf2f6;
+            border:none;
+            cursor:default;
+        }
+        .day-cell.has-stamp{
+            cursor:default;
+        }
+        .day-cell .stamp-img{
+            position:absolute;
+            width:80%;
+            height:80%;
+            object-fit:contain;
+            pointer-events:none;
+        }
+        .btn-wrap{
+            margin-top:20px;
+            text-align:center;
+        }
+        #clearBtn{
+            padding:8px 18px;
+            background:#f8b2c4;
+            border:none;
+            border-radius:8px;
+            color:#fff;
+            cursor:pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>🐷 9月打卡盖章日历 2026</h2>
+
+    <div class="stamp-select">
+        <div class="stamp-item" data-type="early">早起啦</div>
+        <div class="stamp-item" data-type="lazy">偷懒啦</div>
+        <div class="stamp-item" data-type="sleep">一起睡</div>
+    </div>
+
+    <div class="stat-box">
+        <div class="stat-item">早起啦：<span id="countEarly">0</span> 次</div>
+        <div class="stat-item">偷懒啦：<span id="countLazy">0</span> 次</div>
+        <div class="stat-item">一起睡：<span id="countSleep">0</span> 次</div>
+    </div>
+
+    <!--星期表头-->
+    <div class="week-header">
+        <div class="week-item">周一</div>
+        <div class="week-item">周二</div>
+        <div class="week-item">周三</div>
+        <div class="week-item">周四</div>
+        <div class="week-item">周五</div>
+        <div class="week-item">周六</div>
+        <div class="week-item">周日</div>
+    </div>
+
+    <div class="calendar-grid" id="calendarWrap"></div>
+
+    <div class="btn-wrap">
+        <button id="clearBtn">清空全部打卡记录</button>
+    </div>
+</div>
+
+<script>
+    //印章图片地址，自行替换为你的透明png
+    const stampSrc = {
+        early: "c3efe24395dbc151f09e0fbb2019d610.png",
+        lazy: "50d0e861c2d7cce3cdff3bc817719cdf.png",
+        sleep: "d6db4c2358eac422e294bb5e019ccefb.png"
+    };
+    const START_DAY = 1;
+    const END_DAY = 30;
+    //2026-09-01 是星期二，周一为第0列，所以前面空1格
+    const OFFSET = 1;
+    let selectedStamp = null;
+
+    const calendarWrap = document.getElementById('calendarWrap');
+    const countEarly = document.getElementById('countEarly');
+    const countLazy = document.getElementById('countLazy');
+    const countSleep = document.getElementById('countSleep');
+    const clearBtn = document.getElementById('clearBtn');
+    const stampItems = document.querySelectorAll('.stamp-item');
+
+    function loadStorage(){
+        const raw = localStorage.getItem('pigCalendarRecord');
+        return raw ? JSON.parse(raw) : {};
+    }
+    function saveStorage(obj){
+        localStorage.setItem('pigCalendarRecord', JSON.stringify(obj));
+    }
+
+    function updateStat(){
+        const record = loadStorage();
+        let e=0,l=0,s=0;
+        Object.values(record).forEach(v=>{
+            if(v==='early')e++;
+            if(v==='lazy')l++;
+            if(v==='sleep')s++;
+        })
+        countEarly.innerText = e;
+        countLazy.innerText = l;
+        countSleep.innerText = s;
+    }
+
+    function renderCalendar(){
+        calendarWrap.innerHTML = '';
+        const record = loadStorage();
+        //前置空白格子
+        for(let i=0;i<OFFSET;i++){
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'day-cell empty';
+            calendarWrap.appendChild(emptyCell);
+        }
+        //渲染1‑30号日期格子
+        for(let d=START_DAY;d<=END_DAY;d++){
+            const cell = document.createElement('div');
+            cell.className = 'day-cell';
+            cell.dataset.day = d;
+            cell.innerText = d;
+
+            const stampType = record[d];
+            if(stampType){
+                cell.classList.add('has-stamp');
+                const img = document.createElement('img');
+                img.className = 'stamp-img';
+                img.src = stampSrc[stampType];
+                cell.appendChild(img);
+            }
+
+            cell.onclick = ()=>{
+                if(!selectedStamp){
+                    alert('请先选择一枚印章！');
+                    return;
+                }
+                if(record[d]){
+                    return;
+                }
+                record[d] = selectedStamp;
+                saveStorage(record);
+                renderCalendar();
+                updateStat();
+            }
+            calendarWrap.appendChild(cell);
+        }
+    }
+
+    stampItems.forEach(item=>{
+        item.onclick = ()=>{
+            stampItems.forEach(i=>i.classList.remove('active'));
+            item.classList.add('active');
+            selectedStamp = item.dataset.type;
+        }
+    })
+
+    clearBtn.onclick = ()=>{
+        if(window.confirm('确定要清空全部打卡记录吗？该操作不可恢复！')){
+            localStorage.removeItem('pigCalendarRecord');
+            renderCalendar();
+            updateStat();
+        }
+    }
+
+    renderCalendar();
+    updateStat();
+</script>
+</body>
+</html>
